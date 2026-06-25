@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>世界濒危语言地图 — 树图（Treemap）</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+            background: #f5f5f7;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .insight-bar {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 24px;
+            text-align: center;
+            max-width: 700px;
+            line-height: 1.6;
+        }
+        #main-container {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #chart-wrapper {
+            position: relative;
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        }
+        #treemap {
+            position: relative;
+        }
+        #treemap svg {
+            display: block;
+        }
+        /* 矩形上的文字 */
+        .node-label {
+            font-size: 12px;
+            font-weight: 600;
+            fill: white;
+            pointer-events: none;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .node-label-small {
+            font-size: 10px;
+            fill: white;
+            pointer-events: none;
+            opacity: 0.9;
+        }
+        .node-value {
+            font-size: 11px;
+            fill: rgba(255,255,255,0.85);
+            pointer-events: none;
+            font-family: "SF Mono", monospace;
+        }
+        /* 大洲标题 */
+        .continent-header {
+            font-size: 14px;
+            font-weight: 700;
+            fill: #1a1a2e;
+            pointer-events: none;
+        }
+        /* 提示框 */
+        #tooltip {
+            position: absolute;
+            background: rgba(255,255,255,0.98);
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+            min-width: 240px;
+        }
+        #tooltip .tt-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #tooltip .tt-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        #tooltip .tt-row {
+            font-size: 13px;
+            color: #555;
+            margin: 4px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        #tooltip .tt-row span:last-child {
+            font-weight: 600;
+            color: #1a1a2e;
+            font-family: monospace;
+        }
+        #tooltip .tt-divider {
+            height: 1px;
+            background: #eee;
+            margin: 10px 0;
+        }
+        #tooltip .tt-minis {
+            font-size: 12px;
+            color: #888;
+            margin-top: 6px;
+        }
+        #tooltip .tt-minis strong {
+            color: #d32f2f;
+        }
+        /* 右侧信息面板 */
+        #side-panel {
+            width: 280px;
+            flex-shrink: 0;
+        }
+        .panel-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        .panel-card h3 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 14px;
+        }
+        /* 图例 */
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            font-size: 13px;
+            color: #444;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .legend-label { flex: 1; }
+        .legend-desc { font-size: 11px; color: #999; }
+        /* 统计卡片 */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .stat-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a2e;
+            font-family: monospace;
+        }
+        .stat-label {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+        }
+        /* 大洲对比条 */
+        .continent-bar {
+            margin: 10px 0;
+        }
+        .continent-bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-bottom: 4px;
+        }
+        .continent-bar-label span:first-child { color: #444; font-weight: 600; }
+        .continent-bar-label span:last-child { color: #888; font-family: monospace; }
+        .continent-bar-track {
+            height: 8px;
+            background: #eee;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .continent-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.8s ease;
+        }
+        /* 详情列表 */
+        .detail-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .lang-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 13px;
+        }
+        .lang-row:last-child { border-bottom: none; }
+        .lang-name { color: #444; }
+        .lang-num {
+            font-family: monospace;
+            font-weight: 600;
+            color: #d32f2f;
+            font-size: 12px;
+        }
+        /* 设计说明 */
+        #design-note {
+            max-width: 1000px;
+            margin-top: 30px;
+            padding: 20px 24px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            font-size: 13px;
+            line-height: 1.8;
+            color: #555;
+        }
+        #design-note h4 {
+            font-size: 14px;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        #design-note .note-item {
+            margin: 6px 0;
+            padding-left: 16px;
+            position: relative;
+        }
+        #design-note .note-item::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #999;
+        }
+        #design-note .principle {
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+        /* 选中高亮 */
+        .node-rect {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .node-rect:hover {
+            filter: brightness(1.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>世界濒危语言地图</h1>
+    <p class="subtitle">树图（Treemap）— 矩形面积 = 该类别语言总使用人数</p>
+    <p class="insight-bar">
+        💡 <strong>观察要点：</strong>面积大小反映"人口规模"，颜色深浅反映"危机程度"。
+        同一大洲的矩形自然聚类，可直观比较各大洲的"语言人口总量"与"危机分布"。
+    </p>
+
+    <div id="main-container">
+        <div id="chart-wrapper">
+            <div id="treemap">
+                <svg id="treemap-svg"></svg>
+                <div id="tooltip"></div>
+            </div>
+        </div>
+
+        <div id="side-panel">
+            <!-- 统计概览 -->
+            <div class="panel-card">
+                <h3>📊 数据概览</h3>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="stat-value">300</div>
+                        <div class="stat-label">濒危语言</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">1.39M</div>
+                        <div class="stat-label">总使用人数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">4</div>
+                        <div class="stat-label">大洲</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value">4</div>
+                        <div class="stat-label">濒危等级</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 大洲对比 -->
+            <div class="panel-card">
+                <h3>🌍 大洲语言人口占比</h3>
+                <div id="continent-bars"></div>
+            </div>
+
+            <!-- 图例 -->
+            <div class="panel-card">
+                <h3>🎨 濒危等级</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: hsl(85,50%,55%);"></div>
+                    <div>
+                        <div class="legend-label">Vulnerable</div>
+                        <div class="legend-desc">脆弱 — 相对安全</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: hsl(45,80%,55%);"></div>
+                    <div>
+                        <div class="legend-label">Endangered</div>
+                        <div class="legend-desc">濒危 — 需关注</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: hsl(30,90%,50%);"></div>
+                    <div>
+                        <div class="legend-label">Severely Endangered</div>
+                        <div class="legend-desc">严重濒危 — 紧迫</div>
+                    </div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: hsl(5,85%,45%);"></div>
+                    <div>
+                        <div class="legend-label">Critically Endangered</div>
+                        <div class="legend-desc">极度濒危 — 危急</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 详情面板 -->
+            <div class="panel-card" id="detail-card" style="display: none;">
+                <h3 id="detail-title"></h3>
+                <div id="detail-sub" style="font-size: 12px; color: #888; margin-bottom: 12px;"></div>
+                <div class="detail-list" id="detail-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="design-note">
+        <h4>📐 可视化设计说明 — 信、达、雅</h4>
+        <div class="note-item"><span class="principle">信（真实准确）：</span>矩形面积严格对应该类别语言总使用人数（Remaining_Speakers总和），采用d3.treemap的squarify算法，严格保持面积比例，不扭曲数据。</div>
+        <div class="note-item"><span class="principle">达（清晰传达）：</span>同一大洲的矩形通过布局算法自然聚类，无需额外边框即可识别；颜色深浅直接映射危机等级，一眼比较各大洲"人口规模"与"危机程度"的双重维度。</div>
+        <div class="note-item"><span class="principle">雅（美观优雅）：</span>采用HSL色彩模型，通过Saturation（饱和度）映射危机强度，Lightness统一调控避免刺眼；浅绿→黄→橙→深红的渐变形成"危机温度计"视觉隐喻，矩形间隙留白增强呼吸感。</div>
+    </div>
+
+    <script>
+
+// ===================== 数据 =====================
+const data = {"name": "World", "children": [{"name": "Africa", "children": [{"name": "Vulnerable", "value": 135535, "count": 27, "color": "hsl(85, 50%, 55%)", "languages": [{"name": "Lang_294", "speakers": 390}, {"name": "Lang_234", "speakers": 960}, {"name": "Lang_183", "speakers": 1211}, {"name": "Lang_37", "speakers": 1294}, {"name": "Lang_198", "speakers": 1558}, {"name": "Lang_283", "speakers": 1685}, {"name": "Lang_160", "speakers": 1766}, {"name": "Lang_154", "speakers": 2813}, {"name": "Lang_1", "speakers": 2926}, {"name": "Lang_28", "speakers": 3231}, {"name": "Lang_44", "speakers": 3331}, {"name": "Lang_196", "speakers": 3360}, {"name": "Lang_55", "speakers": 3653}, {"name": "Lang_186", "speakers": 3654}, {"name": "Lang_108", "speakers": 4018}, {"name": "Lang_282", "speakers": 5479}, {"name": "Lang_99", "speakers": 5521}, {"name": "Lang_259", "speakers": 5537}, {"name": "Lang_176", "speakers": 6067}, {"name": "Lang_13", "speakers": 6544}, {"name": "Lang_35", "speakers": 7572}, {"name": "Lang_161", "speakers": 7786}, {"name": "Lang_102", "speakers": 8367}, {"name": "Lang_19", "speakers": 9821}, {"name": "Lang_288", "speakers": 11352}, {"name": "Lang_72", "speakers": 12166}, {"name": "Lang_51", "speakers": 13473}]}, {"name": "Endangered", "value": 77061, "count": 16, "color": "hsl(45, 80%, 55%)", "languages": [{"name": "Lang_279", "speakers": 530}, {"name": "Lang_207", "speakers": 922}, {"name": "Lang_107", "speakers": 1933}, {"name": "Lang_87", "speakers": 2066}, {"name": "Lang_112", "speakers": 2939}, {"name": "Lang_10", "speakers": 3097}, {"name": "Lang_121", "speakers": 3316}, {"name": "Lang_226", "speakers": 4633}, {"name": "Lang_132", "speakers": 4657}, {"name": "Lang_152", "speakers": 5099}, {"name": "Lang_191", "speakers": 5309}, {"name": "Lang_170", "speakers": 5319}, {"name": "Lang_26", "speakers": 6925}, {"name": "Lang_47", "speakers": 8376}, {"name": "Lang_24", "speakers": 10894}, {"name": "Lang_6", "speakers": 11046}]}, {"name": "Severely Endangered", "value": 98940, "count": 17, "color": "hsl(30, 90%, 50%)", "languages": [{"name": "Lang_287", "speakers": 116}, {"name": "Lang_232", "speakers": 467}, {"name": "Lang_4", "speakers": 548}, {"name": "Lang_145", "speakers": 560}, {"name": "Lang_155", "speakers": 1605}, {"name": "Lang_203", "speakers": 1997}, {"name": "Lang_218", "speakers": 2335}, {"name": "Lang_61", "speakers": 2415}, {"name": "Lang_84", "speakers": 2920}, {"name": "Lang_9", "speakers": 3652}, {"name": "Lang_86", "speakers": 3924}, {"name": "Lang_15", "speakers": 4960}, {"name": "Lang_90", "speakers": 10155}, {"name": "Lang_71", "speakers": 13879}, {"name": "Lang_81", "speakers": 14727}, {"name": "Lang_163", "speakers": 17035}, {"name": "Lang_260", "speakers": 17645}]}, {"name": "Critically Endangered", "value": 108585, "count": 18, "color": "hsl(5, 85%, 45%)", "languages": [{"name": "Lang_239", "speakers": 497}, {"name": "Lang_95", "speakers": 637}, {"name": "Lang_101", "speakers": 889}, {"name": "Lang_190", "speakers": 1563}, {"name": "Lang_247", "speakers": 1630}, {"name": "Lang_278", "speakers": 2292}, {"name": "Lang_256", "speakers": 2591}, {"name": "Lang_242", "speakers": 2756}, {"name": "Lang_277", "speakers": 3166}, {"name": "Lang_66", "speakers": 3557}, {"name": "Lang_246", "speakers": 3845}, {"name": "Lang_117", "speakers": 8196}, {"name": "Lang_103", "speakers": 9600}, {"name": "Lang_222", "speakers": 11558}, {"name": "Lang_106", "speakers": 11714}, {"name": "Lang_38", "speakers": 12769}, {"name": "Lang_52", "speakers": 14716}, {"name": "Lang_124", "speakers": 16609}]}]}, {"name": "Americas", "children": [{"name": "Vulnerable", "value": 140604, "count": 27, "color": "hsl(85, 50%, 55%)", "languages": [{"name": "Lang_110", "speakers": 224}, {"name": "Lang_109", "speakers": 259}, {"name": "Lang_228", "speakers": 409}, {"name": "Lang_271", "speakers": 449}, {"name": "Lang_54", "speakers": 728}, {"name": "Lang_286", "speakers": 1180}, {"name": "Lang_74", "speakers": 1403}, {"name": "Lang_7", "speakers": 1575}, {"name": "Lang_280", "speakers": 1852}, {"name": "Lang_25", "speakers": 2376}, {"name": "Lang_34", "speakers": 2634}, {"name": "Lang_276", "speakers": 2687}, {"name": "Lang_82", "speakers": 2752}, {"name": "Lang_214", "speakers": 3024}, {"name": "Lang_88", "speakers": 3206}, {"name": "Lang_96", "speakers": 3795}, {"name": "Lang_192", "speakers": 3813}, {"name": "Lang_215", "speakers": 3889}, {"name": "Lang_231", "speakers": 4443}, {"name": "Lang_2", "speakers": 4809}, {"name": "Lang_111", "speakers": 6371}, {"name": "Lang_216", "speakers": 9472}, {"name": "Lang_184", "speakers": 9888}, {"name": "Lang_128", "speakers": 10397}, {"name": "Lang_5", "speakers": 16399}, {"name": "Lang_240", "speakers": 18621}, {"name": "Lang_29", "speakers": 23949}]}, {"name": "Endangered", "value": 91921, "count": 14, "color": "hsl(45, 80%, 55%)", "languages": [{"name": "Lang_244", "speakers": 125}, {"name": "Lang_134", "speakers": 275}, {"name": "Lang_135", "speakers": 757}, {"name": "Lang_181", "speakers": 1048}, {"name": "Lang_285", "speakers": 1074}, {"name": "Lang_41", "speakers": 3485}, {"name": "Lang_296", "speakers": 5174}, {"name": "Lang_223", "speakers": 5607}, {"name": "Lang_195", "speakers": 5918}, {"name": "Lang_8", "speakers": 8651}, {"name": "Lang_158", "speakers": 12251}, {"name": "Lang_57", "speakers": 13589}, {"name": "Lang_141", "speakers": 14823}, {"name": "Lang_148", "speakers": 19144}]}, {"name": "Severely Endangered", "value": 78090, "count": 18, "color": "hsl(30, 90%, 50%)", "languages": [{"name": "Lang_169", "speakers": 200}, {"name": "Lang_18", "speakers": 266}, {"name": "Lang_227", "speakers": 644}, {"name": "Lang_295", "speakers": 720}, {"name": "Lang_64", "speakers": 936}, {"name": "Lang_165", "speakers": 1806}, {"name": "Lang_40", "speakers": 2389}, {"name": "Lang_230", "speakers": 2577}, {"name": "Lang_12", "speakers": 4349}, {"name": "Lang_136", "speakers": 4871}, {"name": "Lang_281", "speakers": 5449}, {"name": "Lang_16", "speakers": 6008}, {"name": "Lang_272", "speakers": 6260}, {"name": "Lang_143", "speakers": 6407}, {"name": "Lang_50", "speakers": 7265}, {"name": "Lang_3", "speakers": 7347}, {"name": "Lang_245", "speakers": 8310}, {"name": "Lang_104", "speakers": 12286}]}, {"name": "Critically Endangered", "value": 83633, "count": 24, "color": "hsl(5, 85%, 45%)", "languages": [{"name": "Lang_126", "speakers": 118}, {"name": "Lang_144", "speakers": 406}, {"name": "Lang_56", "speakers": 597}, {"name": "Lang_49", "speakers": 702}, {"name": "Lang_178", "speakers": 1077}, {"name": "Lang_137", "speakers": 1164}, {"name": "Lang_179", "speakers": 1207}, {"name": "Lang_290", "speakers": 1290}, {"name": "Lang_33", "speakers": 1330}, {"name": "Lang_252", "speakers": 1437}, {"name": "Lang_265", "speakers": 1466}, {"name": "Lang_11", "speakers": 1887}, {"name": "Lang_238", "speakers": 1968}, {"name": "Lang_151", "speakers": 2263}, {"name": "Lang_263", "speakers": 2759}, {"name": "Lang_20", "speakers": 3064}, {"name": "Lang_200", "speakers": 3181}, {"name": "Lang_32", "speakers": 3480}, {"name": "Lang_164", "speakers": 3739}, {"name": "Lang_174", "speakers": 3797}, {"name": "Lang_17", "speakers": 6208}, {"name": "Lang_94", "speakers": 11800}, {"name": "Lang_202", "speakers": 14120}, {"name": "Lang_210", "speakers": 14573}]}]}, {"name": "Asia", "children": [{"name": "Vulnerable", "value": 104818, "count": 21, "color": "hsl(85, 50%, 55%)", "languages": [{"name": "Lang_292", "speakers": 681}, {"name": "Lang_270", "speakers": 1003}, {"name": "Lang_140", "speakers": 1666}, {"name": "Lang_269", "speakers": 1817}, {"name": "Lang_123", "speakers": 1933}, {"name": "Lang_122", "speakers": 2192}, {"name": "Lang_275", "speakers": 2474}, {"name": "Lang_194", "speakers": 2523}, {"name": "Lang_127", "speakers": 2812}, {"name": "Lang_264", "speakers": 2959}, {"name": "Lang_217", "speakers": 3270}, {"name": "Lang_267", "speakers": 3320}, {"name": "Lang_219", "speakers": 3398}, {"name": "Lang_45", "speakers": 3515}, {"name": "Lang_182", "speakers": 4260}, {"name": "Lang_142", "speakers": 9240}, {"name": "Lang_100", "speakers": 9930}, {"name": "Lang_212", "speakers": 10411}, {"name": "Lang_250", "speakers": 11270}, {"name": "Lang_77", "speakers": 11273}, {"name": "Lang_172", "speakers": 14871}]}, {"name": "Endangered", "value": 47669, "count": 19, "color": "hsl(45, 80%, 55%)", "languages": [{"name": "Lang_162", "speakers": 158}, {"name": "Lang_27", "speakers": 509}, {"name": "Lang_153", "speakers": 690}, {"name": "Lang_67", "speakers": 797}, {"name": "Lang_114", "speakers": 1056}, {"name": "Lang_119", "speakers": 1062}, {"name": "Lang_31", "speakers": 1181}, {"name": "Lang_22", "speakers": 1383}, {"name": "Lang_59", "speakers": 1456}, {"name": "Lang_300", "speakers": 1478}, {"name": "Lang_113", "speakers": 1480}, {"name": "Lang_241", "speakers": 1686}, {"name": "Lang_76", "speakers": 1799}, {"name": "Lang_199", "speakers": 3034}, {"name": "Lang_255", "speakers": 4247}, {"name": "Lang_91", "speakers": 5422}, {"name": "Lang_115", "speakers": 5542}, {"name": "Lang_201", "speakers": 6131}, {"name": "Lang_93", "speakers": 8558}]}, {"name": "Severely Endangered", "value": 42596, "count": 9, "color": "hsl(30, 90%, 50%)", "languages": [{"name": "Lang_204", "speakers": 215}, {"name": "Lang_118", "speakers": 412}, {"name": "Lang_48", "speakers": 3901}, {"name": "Lang_299", "speakers": 4075}, {"name": "Lang_262", "speakers": 4545}, {"name": "Lang_70", "speakers": 6271}, {"name": "Lang_131", "speakers": 7102}, {"name": "Lang_30", "speakers": 7357}, {"name": "Lang_266", "speakers": 8718}]}, {"name": "Critically Endangered", "value": 74909, "count": 18, "color": "hsl(5, 85%, 45%)", "languages": [{"name": "Lang_253", "speakers": 339}, {"name": "Lang_225", "speakers": 524}, {"name": "Lang_261", "speakers": 966}, {"name": "Lang_211", "speakers": 1097}, {"name": "Lang_258", "speakers": 1221}, {"name": "Lang_120", "speakers": 2440}, {"name": "Lang_92", "speakers": 2846}, {"name": "Lang_284", "speakers": 3081}, {"name": "Lang_150", "speakers": 3341}, {"name": "Lang_197", "speakers": 3593}, {"name": "Lang_229", "speakers": 3746}, {"name": "Lang_139", "speakers": 3935}, {"name": "Lang_220", "speakers": 4327}, {"name": "Lang_274", "speakers": 5857}, {"name": "Lang_254", "speakers": 5865}, {"name": "Lang_180", "speakers": 6699}, {"name": "Lang_208", "speakers": 7145}, {"name": "Lang_78", "speakers": 17887}]}]}, {"name": "Oceania", "children": [{"name": "Vulnerable", "value": 83458, "count": 19, "color": "hsl(85, 50%, 55%)", "languages": [{"name": "Lang_116", "speakers": 2}, {"name": "Lang_157", "speakers": 207}, {"name": "Lang_98", "speakers": 241}, {"name": "Lang_75", "speakers": 705}, {"name": "Lang_147", "speakers": 876}, {"name": "Lang_46", "speakers": 970}, {"name": "Lang_273", "speakers": 1092}, {"name": "Lang_21", "speakers": 1521}, {"name": "Lang_297", "speakers": 2075}, {"name": "Lang_166", "speakers": 2251}, {"name": "Lang_60", "speakers": 2609}, {"name": "Lang_14", "speakers": 2646}, {"name": "Lang_43", "speakers": 4103}, {"name": "Lang_68", "speakers": 4729}, {"name": "Lang_89", "speakers": 4748}, {"name": "Lang_62", "speakers": 7915}, {"name": "Lang_79", "speakers": 9806}, {"name": "Lang_185", "speakers": 14252}, {"name": "Lang_168", "speakers": 22710}]}, {"name": "Endangered", "value": 73466, "count": 17, "color": "hsl(45, 80%, 55%)", "languages": [{"name": "Lang_189", "speakers": 255}, {"name": "Lang_249", "speakers": 886}, {"name": "Lang_221", "speakers": 1047}, {"name": "Lang_65", "speakers": 1554}, {"name": "Lang_291", "speakers": 1639}, {"name": "Lang_187", "speakers": 2171}, {"name": "Lang_53", "speakers": 2302}, {"name": "Lang_146", "speakers": 3394}, {"name": "Lang_138", "speakers": 3506}, {"name": "Lang_268", "speakers": 3919}, {"name": "Lang_206", "speakers": 3931}, {"name": "Lang_293", "speakers": 5098}, {"name": "Lang_243", "speakers": 5247}, {"name": "Lang_251", "speakers": 5792}, {"name": "Lang_36", "speakers": 7375}, {"name": "Lang_156", "speakers": 10935}, {"name": "Lang_193", "speakers": 14415}]}, {"name": "Severely Endangered", "value": 48881, "count": 18, "color": "hsl(30, 90%, 50%)", "languages": [{"name": "Lang_167", "speakers": 343}, {"name": "Lang_177", "speakers": 352}, {"name": "Lang_149", "speakers": 862}, {"name": "Lang_289", "speakers": 1183}, {"name": "Lang_188", "speakers": 1333}, {"name": "Lang_97", "speakers": 1673}, {"name": "Lang_129", "speakers": 1793}, {"name": "Lang_257", "speakers": 2259}, {"name": "Lang_233", "speakers": 2819}, {"name": "Lang_171", "speakers": 2923}, {"name": "Lang_63", "speakers": 3046}, {"name": "Lang_23", "speakers": 3298}, {"name": "Lang_205", "speakers": 3428}, {"name": "Lang_236", "speakers": 4117}, {"name": "Lang_133", "speakers": 4223}, {"name": "Lang_39", "speakers": 4489}, {"name": "Lang_42", "speakers": 4645}, {"name": "Lang_213", "speakers": 6095}]}, {"name": "Critically Endangered", "value": 101491, "count": 18, "color": "hsl(5, 85%, 45%)", "languages": [{"name": "Lang_83", "speakers": 46}, {"name": "Lang_85", "speakers": 235}, {"name": "Lang_248", "speakers": 317}, {"name": "Lang_130", "speakers": 496}, {"name": "Lang_80", "speakers": 582}, {"name": "Lang_58", "speakers": 1014}, {"name": "Lang_173", "speakers": 1411}, {"name": "Lang_105", "speakers": 1541}, {"name": "Lang_175", "speakers": 3292}, {"name": "Lang_69", "speakers": 4170}, {"name": "Lang_224", "speakers": 5015}, {"name": "Lang_125", "speakers": 5130}, {"name": "Lang_237", "speakers": 5814}, {"name": "Lang_298", "speakers": 6154}, {"name": "Lang_159", "speakers": 8948}, {"name": "Lang_73", "speakers": 14600}, {"name": "Lang_209", "speakers": 20974}, {"name": "Lang_235", "speakers": 21752}]}]}]};
+
+// ===================== 配置 =====================
+const width = 720;
+const height = 600;
+const margin = {top: 10, right: 10, bottom: 10, left: 10};
+
+// ===================== 颜色映射 =====================
+const levelColors = {
+    "Vulnerable": "hsl(85, 50%, 55%)",
+    "Endangered": "hsl(45, 80%, 55%)",
+    "Severely Endangered": "hsl(30, 90%, 50%)",
+    "Critically Endangered": "hsl(5, 85%, 45%)"
+};
+
+const levelNames = {
+    "Vulnerable": "脆弱",
+    "Endangered": "濒危",
+    "Severely Endangered": "严重濒危",
+    "Critically Endangered": "极度濒危"
+};
+
+// ===================== 创建SVG =====================
+const svg = d3.select("#treemap-svg")
+    .attr("width", width)
+    .attr("height", height);
+
+// ===================== 数据处理 =====================
+const root = d3.hierarchy(data)
+    .sum(d => d.value)
+    .sort((a, b) => b.value - a.value);
+
+// 使用d3.treemap创建树图布局
+const treemap = d3.treemap()
+    .size([width, height])
+    .paddingTop(28)      // 顶部留出大洲标题空间
+    .paddingRight(4)
+    .paddingBottom(4)
+    .paddingLeft(4)
+    .paddingInner(2)     // 矩形间间隙
+    .round(true);
+
+treemap(root);
+
+// ===================== 绘制大洲标题背景 =====================
+const continents = root.children || [];
+
+// 大洲标题
+svg.selectAll(".continent-title")
+    .data(continents)
+    .join("text")
+    .attr("class", "continent-title")
+    .attr("x", d => d.x0 + 8)
+    .attr("y", d => d.y0 + 18)
+    .style("font-size", "13px")
+    .style("font-weight", "700")
+    .style("fill", "#1a1a2e")
+    .style("pointer-events", "none")
+    .text(d => {
+        const totalLangs = d.children ? d.children.reduce((s, c) => s + (c.data.count || 0), 0) : 0;
+        return `${d.data.name} (${totalLangs}种)`;
+    });
+
+// ===================== 绘制矩形 =====================
+const nodes = svg.selectAll("g")
+    .data(root.leaves())
+    .join("g")
+    .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+// 矩形
+nodes.append("rect")
+    .attr("class", "node-rect")
+    .attr("width", d => d.x1 - d.x0)
+    .attr("height", d => d.y1 - d.y0)
+    .attr("fill", d => d.data.color || "#ccc")
+    .attr("rx", 4)
+    .attr("ry", 4)
+    .attr("stroke", "white")
+    .attr("stroke-width", 1.5);
+
+// 矩形上的文字标签（只在足够大的矩形上显示）
+nodes.append("text")
+    .attr("class", "node-label")
+    .attr("x", 6)
+    .attr("y", 18)
+    .style("font-size", d => {
+        const w = d.x1 - d.x0;
+        const h = d.y1 - d.y0;
+        return (w > 80 && h > 50) ? "12px" : (w > 50 && h > 35) ? "10px" : "0px";
+    })
+    .text(d => {
+        const w = d.x1 - d.x0;
+        const h = d.y1 - d.y0;
+        if (w < 50 || h < 35) return "";
+        return levelNames[d.data.name] || d.data.name;
+    });
+
+// 人数标签
+nodes.append("text")
+    .attr("class", "node-value")
+    .attr("x", 6)
+    .attr("y", d => {
+        const hasLabel = (d.x1 - d.x0) > 50 && (d.y1 - d.y0) > 35;
+        return hasLabel ? 34 : 18;
+    })
+    .style("font-size", d => {
+        const w = d.x1 - d.x0;
+        const h = d.y1 - d.y0;
+        return (w > 80 && h > 50) ? "11px" : (w > 50 && h > 35) ? "9px" : "0px";
+    })
+    .text(d => {
+        const w = d.x1 - d.x0;
+        const h = d.y1 - d.y0;
+        if (w < 50 || h < 35) return "";
+        return d.value.toLocaleString() + "人";
+    });
+
+// 语言数量标签
+nodes.append("text")
+    .attr("class", "node-value")
+    .attr("x", 6)
+    .attr("y", d => {
+        const hasLabel = (d.x1 - d.x0) > 50 && (d.y1 - d.y0) > 35;
+        const hasValue = (d.x1 - d.x0) > 80 && (d.y1 - d.y0) > 50;
+        return hasValue ? 48 : (hasLabel ? 34 : 18);
+    })
+    .style("font-size", d => {
+        const w = d.x1 - d.x0;
+        const h = d.y1 - d.y0;
+        return (w > 80 && h > 65) ? "10px" : "0px";
+    })
+    .style("opacity", 0.7)
+    .text(d => {
+        const w = d.x1 - d.x0;
+        const h = d.y1 - d.y0;
+        if (w < 80 || h < 65) return "";
+        return d.data.count + "种语言";
+    });
+
+// ===================== 初始动画 =====================
+nodes.selectAll("rect")
+    .attr("width", 0)
+    .attr("height", 0)
+    .transition()
+    .duration(800)
+    .delay((d, i) => i * 30)
+    .attr("width", d => d.x1 - d.x0)
+    .attr("height", d => d.y1 - d.y0)
+    .ease(d3.easeCubicOut);
+
+nodes.selectAll("text")
+    .style("opacity", 0)
+    .transition()
+    .delay(600)
+    .duration(400)
+    .style("opacity", 1);
+
+// ===================== 交互：悬停提示 =====================
+const tooltip = d3.select("#tooltip");
+
+nodes.on("mouseenter", function(event, d) {
+    // 高亮当前，淡化其他
+    svg.selectAll(".node-rect")
+        .style("opacity", p => p === d ? 1 : 0.3);
+
+    const minis = d.data.languages ? d.data.languages.slice(0, 3) : [];
+    const html = `
+        <div class="tt-title"><span class="tt-color" style="background:${d.data.color}"></span>${d.parent.data.name} · ${levelNames[d.data.name] || d.data.name}</div>
+        <div class="tt-row"><span>语言数量</span><span>${d.data.count} 种</span></div>
+        <div class="tt-row"><span>总使用人数</span><span>${d.value.toLocaleString()} 人</span></div>
+        <div class="tt-row"><span>占全球比例</span><span>${((d.value / root.value) * 100).toFixed(2)}%</span></div>
+        <div class="tt-divider"></div>
+        <div class="tt-minis">人数最少的3种：<br/>${minis.map(l => `<strong>${l.name}</strong>: ${l.speakers.toLocaleString()}人`).join("<br/>")}</div>
+    `;
+
+    tooltip.html(html).style("opacity", 1);
+
+    // 更新详情面板
+    updateDetailPanel(d);
+})
+.on("mousemove", function(event) {
+    const container = document.getElementById("treemap");
+    const rect = container.getBoundingClientRect();
+    tooltip
+        .style("left", (event.clientX - rect.left + 15) + "px")
+        .style("top", (event.clientY - rect.top + 15) + "px");
+})
+.on("mouseleave", function() {
+    svg.selectAll(".node-rect").style("opacity", 1);
+    tooltip.style("opacity", 0);
+});
+
+// ===================== 详情面板更新 =====================
+function updateDetailPanel(d) {
+    const card = document.getElementById("detail-card");
+    const title = document.getElementById("detail-title");
+    const sub = document.getElementById("detail-sub");
+    const list = document.getElementById("detail-list");
+
+    card.style.display = "block";
+    title.textContent = `📋 ${d.parent.data.name} · ${levelNames[d.data.name] || d.data.name}`;
+    sub.textContent = `共 ${d.data.count} 种语言，总计 ${d.value.toLocaleString()} 人使用，占全球濒危语言人口的 ${((d.value / root.value) * 100).toFixed(2)}%`;
+
+    const languages = d.data.languages || [];
+    list.innerHTML = languages.map(l =>
+        `<div class="lang-row"><span class="lang-name">${l.name}</span><span class="lang-num">${l.speakers.toLocaleString()} 人</span></div>`
+    ).join("");
+}
+
+// ===================== 大洲对比条 =====================
+const continentBars = document.getElementById("continent-bars");
+const totalValue = root.value;
+const continentColors = ["#4ECDC4", "#FF6B6B", "#45B7D1", "#96CEB4"];
+
+continents.forEach((c, i) => {
+    const pct = ((c.value / totalValue) * 100).toFixed(1);
+    const barHtml = `
+        <div class="continent-bar">
+            <div class="continent-bar-label">
+                <span>${c.data.name}</span>
+                <span>${c.value.toLocaleString()}人 (${pct}%)</span>
+            </div>
+            <div class="continent-bar-track">
+                <div class="continent-bar-fill" style="width: 0%; background: ${continentColors[i]};" data-width="${pct}%"></div>
+            </div>
+        </div>
+    `;
+    continentBars.innerHTML += barHtml;
+});
+
+// 动画填充对比条
+setTimeout(() => {
+    document.querySelectorAll(".continent-bar-fill").forEach(bar => {
+        bar.style.width = bar.getAttribute("data-width");
+    });
+}, 100);
+
+// ===================== 统计数字动画 =====================
+function animateValue(obj, start, end, duration) {
+    let startTimestamp = null;
+    const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        obj.innerHTML = Math.floor(progress * (end - start) + start).toLocaleString();
+        if (progress < 1) window.requestAnimationFrame(step);
+    };
+    window.requestAnimationFrame(step);
+}
+
+setTimeout(() => {
+    const statValues = document.querySelectorAll(".stat-value");
+    animateValue(statValues[1], 0, root.value, 1200);
+}, 300);
+</script>
+</body>
+</html>

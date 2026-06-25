@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>世界濒危语言地图 — 箱线图（Box Plot）</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+            background: #f5f5f7;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        .insight-bar {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 24px;
+            text-align: center;
+            max-width: 700px;
+            line-height: 1.6;
+        }
+        #main-container {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #chart-wrapper {
+            position: relative;
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        }
+        #boxplot {
+            position: relative;
+        }
+        #boxplot svg {
+            display: block;
+        }
+        /* 坐标轴 */
+        .axis path,
+        .axis line {
+            stroke: #ddd;
+            stroke-width: 1;
+        }
+        .axis text {
+            font-size: 12px;
+            fill: #888;
+            font-family: monospace;
+        }
+        .axis-label {
+            font-size: 13px;
+            fill: #666;
+            font-weight: 600;
+        }
+        /* 箱线图元素 */
+        .box {
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .box:hover {
+            filter: brightness(1.15);
+        }
+        .box-rect {
+            rx: 4;
+            ry: 4;
+        }
+        .median-line {
+            stroke: white;
+            stroke-width: 2;
+            stroke-linecap: round;
+        }
+        .whisker {
+            stroke: #999;
+            stroke-width: 1.5;
+            stroke-dasharray: 4,2;
+        }
+        .whisker-cap {
+            stroke: #999;
+            stroke-width: 1.5;
+        }
+        .outlier {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .outlier:hover {
+            r: 6;
+            stroke-width: 2;
+        }
+        .jitter-point {
+            opacity: 0.15;
+            pointer-events: none;
+        }
+        /* X轴标签 */
+        .x-label {
+            font-size: 13px;
+            font-weight: 700;
+            fill: #1a1a2e;
+            text-anchor: middle;
+        }
+        .x-label-sub {
+            font-size: 11px;
+            fill: #888;
+            text-anchor: middle;
+        }
+        /* 提示框 */
+        #tooltip {
+            position: absolute;
+            background: rgba(255,255,255,0.98);
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+            min-width: 220px;
+        }
+        #tooltip .tt-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        #tooltip .tt-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        #tooltip .tt-row {
+            font-size: 13px;
+            color: #555;
+            margin: 4px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        #tooltip .tt-row span:last-child {
+            font-weight: 600;
+            color: #1a1a2e;
+            font-family: monospace;
+        }
+        #tooltip .tt-divider {
+            height: 1px;
+            background: #eee;
+            margin: 10px 0;
+        }
+        /* 右侧信息面板 */
+        #side-panel {
+            width: 300px;
+            flex-shrink: 0;
+        }
+        .panel-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        .panel-card h3 {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 14px;
+        }
+        /* 关键发现 */
+        .finding-item {
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin: 8px 0;
+            border-left: 3px solid;
+        }
+        .finding-item .finding-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 4px;
+        }
+        .finding-item .finding-desc {
+            font-size: 12px;
+            color: #666;
+            line-height: 1.5;
+        }
+        /* 统计表格 */
+        .stat-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        .stat-table th {
+            text-align: left;
+            padding: 8px 4px;
+            color: #888;
+            font-weight: 600;
+            border-bottom: 1px solid #eee;
+        }
+        .stat-table td {
+            padding: 8px 4px;
+            color: #444;
+            border-bottom: 1px solid #f5f5f5;
+            font-family: monospace;
+        }
+        .stat-table td:first-child {
+            font-family: inherit;
+            font-weight: 600;
+            color: #1a1a2e;
+        }
+        /* 图例 */
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 0;
+            font-size: 13px;
+            color: #444;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .legend-label { flex: 1; }
+        .legend-desc { font-size: 11px; color: #999; }
+        /* 设计说明 */
+        #design-note {
+            max-width: 1000px;
+            margin-top: 30px;
+            padding: 20px 24px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            font-size: 13px;
+            line-height: 1.8;
+            color: #555;
+        }
+        #design-note h4 {
+            font-size: 14px;
+            color: #1a1a2e;
+            margin-bottom: 8px;
+        }
+        #design-note .note-item {
+            margin: 6px 0;
+            padding-left: 16px;
+            position: relative;
+        }
+        #design-note .note-item::before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #999;
+        }
+        #design-note .principle {
+            font-weight: 700;
+            color: #1a1a2e;
+        }
+    </style>
+</head>
+<body>
+    <h1>世界濒危语言地图</h1>
+    <p class="subtitle">箱线图（Box Plot）— 对数坐标下的使用人数分布</p>
+    <p class="insight-bar">
+        💡 <strong>核心发现：</strong>"极度濒危"不等于"人数最少"。
+        对数坐标揭示：四个等级的使用人数分布高度重叠，危机等级与人口规模并非简单线性关系。
+    </p>
+
+    <div id="main-container">
+        <div id="chart-wrapper">
+            <div id="boxplot">
+                <svg id="boxplot-svg"></svg>
+                <div id="tooltip"></div>
+            </div>
+        </div>
+
+        <div id="side-panel">
+            <!-- 关键发现 -->
+            <div class="panel-card">
+                <h3>🔍 关键发现</h3>
+                <div class="finding-item" style="border-left-color: hsl(5,85%,45%);">
+                    <div class="finding-title">极度濒危 ≠ 人数最少</div>
+                    <div class="finding-desc">Critically Endangered 中，最大人数达 21,752人，与 Vulnerable 的上限几乎重叠。</div>
+                </div>
+                <div class="finding-item" style="border-left-color: hsl(45,80%,55%);">
+                    <div class="finding-title">中位数高度接近</div>
+                    <div class="finding-desc">四个等级的中位数都在 3,000 左右，说明"濒危"更多取决于趋势而非当前规模。</div>
+                </div>
+                <div class="finding-item" style="border-left-color: hsl(30,90%,50%);">
+                    <div class="finding-title">异常值揭示极端案例</div>
+                    <div class="finding-desc">每个等级都存在 outliers，提示需要针对具体语言制定差异化保护策略。</div>
+                </div>
+            </div>
+
+            <!-- 统计摘要 -->
+            <div class="panel-card">
+                <h3>📊 统计摘要</h3>
+                <table class="stat-table">
+                    <thead>
+                        <tr><th>等级</th><th>中位数</th><th>最小</th><th>最大</th></tr>
+                    </thead>
+                    <tbody id="stat-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- 图例 -->
+            <div class="panel-card">
+                <h3>🎨 濒危等级</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: hsl(85,50%,55%);"></div>
+                    <div><div class="legend-label">Vulnerable</div><div class="legend-desc">脆弱</div></div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: hsl(45,80%,55%);"></div>
+                    <div><div class="legend-label">Endangered</div><div class="legend-desc">濒危</div></div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: hsl(30,90%,50%);"></div>
+                    <div><div class="legend-label">Severely Endangered</div><div class="legend-desc">严重濒危</div></div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: hsl(5,85%,45%);"></div>
+                    <div><div class="legend-label">Critically Endangered</div><div class="legend-desc">极度濒危</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="design-note">
+        <h4>📐 可视化设计说明 — 信、达、雅</h4>
+        <div class="note-item"><span class="principle">信（真实准确）：</span>采用对数坐标（Log Scale）处理Y轴，因为使用人数跨度达2~23,949，线性坐标会压缩低值区细节；箱线图的五数概括（最小值、Q1、中位数、Q3、最大值）精确反映分布特征。</div>
+        <div class="note-item"><span class="principle">达（清晰传达）：</span>对数坐标下，四个等级的箱体高度重叠，直观证明"濒危等级与人口规模无简单对应关系"；叠加抖动散点（Jitter）展示原始数据分布，避免箱线图隐藏个体信息。</div>
+        <div class="note-item"><span class="principle">雅（美观优雅）：</span>延续HSL色彩系统，箱体颜色与旭日图/树图保持一致，形成系列化视觉语言；异常值用同色描边圆点标记，既突出极端案例又不破坏整体和谐。</div>
+    </div>
+
+    <script>
+
+// ===================== 数据 =====================
+const boxData = [{"level": "Vulnerable", "level_cn": "脆弱", "color": "hsl(85, 50%, 55%)", "count": 94, "min": 2, "max": 23949, "q1": 1670.75, "median": 3250.5, "q3": 6500.75, "lower_fence": 2.0, "upper_fence": 13745.75, "outliers": [14252, 14871, 16399, 18621, 22710, 23949], "all_values": [2, 207, 224, 241, 259, 390, 409, 449, 681, 705, 728, 876, 960, 970, 1003, 1092, 1180, 1211, 1294, 1403, 1521, 1558, 1575, 1666, 1685, 1766, 1817, 1852, 1933, 2075, 2192, 2251, 2376, 2474, 2523, 2609, 2634, 2646, 2687, 2752, 2812, 2813, 2926, 2959, 3024, 3206, 3231, 3270, 3320, 3331, 3360, 3398, 3515, 3653, 3654, 3795, 3813, 3889, 4018, 4103, 4260, 4443, 4729, 4748, 4809, 5479, 5521, 5537, 6067, 6371, 6544, 7572, 7786, 7915, 8367, 9240, 9472, 9806, 9821, 9888, 9930, 10397, 10411, 11270, 11273, 11352, 12166, 13473, 14252, 14871, 16399, 18621, 22710, 23949]}, {"level": "Endangered", "level_cn": "濒危", "color": "hsl(45, 80%, 55%)", "count": 66, "min": 125, "max": 19144, "q1": 1231.5, "median": 3355.0, "q3": 5590.75, "lower_fence": 125.0, "upper_fence": 12129.625, "outliers": [12251, 13589, 14415, 14823, 19144], "all_values": [125, 158, 255, 275, 509, 530, 690, 757, 797, 886, 922, 1047, 1048, 1056, 1062, 1074, 1181, 1383, 1456, 1478, 1480, 1554, 1639, 1686, 1799, 1933, 2066, 2171, 2302, 2939, 3034, 3097, 3316, 3394, 3485, 3506, 3919, 3931, 4247, 4633, 4657, 5098, 5099, 5174, 5247, 5309, 5319, 5422, 5542, 5607, 5792, 5918, 6131, 6925, 7375, 8376, 8558, 8651, 10894, 10935, 11046, 12251, 13589, 14415, 14823, 19144]}, {"level": "Severely Endangered", "level_cn": "严重濒危", "color": "hsl(30, 90%, 50%)", "count": 62, "min": 116, "max": 17645, "q1": 1401.0, "median": 3363.0, "q3": 6073.25, "lower_fence": 116.0, "upper_fence": 13081.625, "outliers": [13879, 14727, 17035, 17645], "all_values": [116, 200, 215, 266, 343, 352, 412, 467, 548, 560, 644, 720, 862, 936, 1183, 1333, 1605, 1673, 1793, 1806, 1997, 2259, 2335, 2389, 2415, 2577, 2819, 2920, 2923, 3046, 3298, 3428, 3652, 3901, 3924, 4075, 4117, 4223, 4349, 4489, 4545, 4645, 4871, 4960, 5449, 6008, 6095, 6260, 6271, 6407, 7102, 7265, 7347, 7357, 8310, 8718, 10155, 12286, 13879, 14727, 17035, 17645]}, {"level": "Critically Endangered", "level_cn": "极度濒危", "color": "hsl(5, 85%, 45%)", "count": 78, "min": 46, "max": 21752, "q1": 1210.5, "median": 3072.5, "q3": 5863.0, "lower_fence": 46.0, "upper_fence": 12841.75, "outliers": [14120, 14573, 14600, 14716, 16609, 17887, 20974, 21752], "all_values": [46, 118, 235, 317, 339, 406, 496, 497, 524, 582, 597, 637, 702, 889, 966, 1014, 1077, 1097, 1164, 1207, 1221, 1290, 1330, 1411, 1437, 1466, 1541, 1563, 1630, 1887, 1968, 2263, 2292, 2440, 2591, 2756, 2759, 2846, 3064, 3081, 3166, 3181, 3292, 3341, 3480, 3557, 3593, 3739, 3746, 3797, 3845, 3935, 4170, 4327, 5015, 5130, 5814, 5857, 5865, 6154, 6208, 6699, 7145, 8196, 8948, 9600, 11558, 11714, 11800, 12769, 14120, 14573, 14600, 14716, 16609, 17887, 20974, 21752]}];
+
+// ===================== 配置 =====================
+const width = 700;
+const height = 520;
+const margin = {top: 40, right: 30, bottom: 80, left: 70};
+const chartWidth = width - margin.left - margin.right;
+const chartHeight = height - margin.top - margin.bottom;
+
+const levelNames = {
+    "Vulnerable": "脆弱",
+    "Endangered": "濒危",
+    "Severely Endangered": "严重濒危",
+    "Critically Endangered": "极度濒危"
+};
+
+// ===================== 创建SVG =====================
+const svg = d3.select("#boxplot-svg")
+    .attr("width", width)
+    .attr("height", height);
+
+const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+// ===================== 比例尺 =====================
+// X轴：濒危等级
+const xScale = d3.scaleBand()
+    .domain(boxData.map(d => d.level))
+    .range([0, chartWidth])
+    .padding(0.3);
+
+// Y轴：对数坐标（使用人数）
+const allValues = boxData.flatMap(d => d.all_values);
+const yMin = Math.max(1, d3.min(allValues) * 0.5);
+const yMax = d3.max(allValues) * 1.5;
+
+const yScale = d3.scaleLog()
+    .domain([yMin, yMax])
+    .range([chartHeight, 0]);
+
+// ===================== 绘制坐标轴 =====================
+// Y轴
+const yAxis = d3.axisLeft(yScale)
+    .tickValues([1, 10, 100, 1000, 10000])
+    .tickFormat(d => d3.format("~s")(d));
+
+g.append("g")
+    .attr("class", "axis")
+    .call(yAxis)
+    .selectAll("text")
+    .style("font-size", "11px")
+    .style("fill", "#888");
+
+// Y轴标签
+g.append("text")
+    .attr("class", "axis-label")
+    .attr("transform", "rotate(-90)")
+    .attr("y", -50)
+    .attr("x", -chartHeight / 2)
+    .attr("text-anchor", "middle")
+    .text("剩余使用人数（对数坐标）");
+
+// X轴
+const xAxis = d3.axisBottom(xScale).tickFormat("");
+g.append("g")
+    .attr("class", "axis")
+    .attr("transform", `translate(0,${chartHeight})`)
+    .call(xAxis);
+
+// X轴标签（自定义，带中文）
+const xLabels = g.selectAll(".x-label-group")
+    .data(boxData)
+    .join("g")
+    .attr("transform", d => `translate(${xScale(d.level) + xScale.bandwidth()/2}, ${chartHeight + 15})`);
+
+xLabels.append("text")
+    .attr("class", "x-label")
+    .text(d => levelNames[d.level]);
+
+xLabels.append("text")
+    .attr("class", "x-label-sub")
+    .attr("y", 16)
+    .text(d => `${d.count}种语言`);
+
+// ===================== 绘制箱线图 =====================
+const boxWidth = xScale.bandwidth() * 0.7;
+
+boxData.forEach((d, i) => {
+    const x = xScale(d.level) + xScale.bandwidth() / 2;
+    const color = d.color;
+
+    // 绘制抖动散点（展示所有原始数据）
+    d.all_values.forEach((val, idx) => {
+        const jitterX = x + (Math.random() - 0.5) * boxWidth * 0.8;
+        g.append("circle")
+            .attr("class", "jitter-point")
+            .attr("cx", jitterX)
+            .attr("cy", yScale(val))
+            .attr("r", 2.5)
+            .attr("fill", color)
+            .attr("opacity", 0)
+            .transition()
+            .delay(400 + idx * 2)
+            .duration(300)
+            .attr("opacity", 0.12);
+    });
+
+    // 下 whisker（从Q1到lower_fence）
+    g.append("line")
+        .attr("class", "whisker")
+        .attr("x1", x)
+        .attr("x2", x)
+        .attr("y1", yScale(d.q1))
+        .attr("y2", yScale(d.lower_fence))
+        .attr("opacity", 0)
+        .transition()
+        .delay(200)
+        .duration(600)
+        .attr("opacity", 1);
+
+    // 下 whisker cap
+    g.append("line")
+        .attr("class", "whisker-cap")
+        .attr("x1", x - boxWidth/4)
+        .attr("x2", x + boxWidth/4)
+        .attr("y1", yScale(d.lower_fence))
+        .attr("y2", yScale(d.lower_fence))
+        .attr("opacity", 0)
+        .transition()
+        .delay(200)
+        .duration(600)
+        .attr("opacity", 1);
+
+    // 上 whisker（从Q3到upper_fence）
+    g.append("line")
+        .attr("class", "whisker")
+        .attr("x1", x)
+        .attr("x2", x)
+        .attr("y1", yScale(d.q3))
+        .attr("y2", yScale(d.upper_fence))
+        .attr("opacity", 0)
+        .transition()
+        .delay(200)
+        .duration(600)
+        .attr("opacity", 1);
+
+    // 上 whisker cap
+    g.append("line")
+        .attr("class", "whisker-cap")
+        .attr("x1", x - boxWidth/4)
+        .attr("x2", x + boxWidth/4)
+        .attr("y1", yScale(d.upper_fence))
+        .attr("y2", yScale(d.upper_fence))
+        .attr("opacity", 0)
+        .transition()
+        .delay(200)
+        .duration(600)
+        .attr("opacity", 1);
+
+    // 箱体（Q1到Q3）
+    const boxHeight = yScale(d.q1) - yScale(d.q3);
+    g.append("rect")
+        .attr("class", "box box-rect")
+        .attr("x", x - boxWidth/2)
+        .attr("y", yScale(d.q3))
+        .attr("width", 0)
+        .attr("height", boxHeight)
+        .attr("fill", color)
+        .attr("opacity", 0.85)
+        .attr("data-level", d.level)
+        .transition()
+        .delay(400)
+        .duration(700)
+        .attr("width", boxWidth)
+        .ease(d3.easeCubicOut);
+
+    // 中位数线
+    g.append("line")
+        .attr("class", "median-line")
+        .attr("x1", x - boxWidth/2)
+        .attr("x2", x - boxWidth/2)
+        .attr("y1", yScale(d.median))
+        .attr("y2", yScale(d.median))
+        .transition()
+        .delay(700)
+        .duration(500)
+        .attr("x2", x + boxWidth/2);
+
+    // 异常值
+    d.outliers.forEach((out, oi) => {
+        g.append("circle")
+            .attr("class", "outlier")
+            .attr("cx", x + (Math.random() - 0.5) * 15)
+            .attr("cy", yScale(out))
+            .attr("r", 0)
+            .attr("fill", color)
+            .attr("stroke", "white")
+            .attr("stroke-width", 1.5)
+            .attr("data-value", out)
+            .transition()
+            .delay(900 + oi * 100)
+            .duration(400)
+            .attr("r", 4.5)
+            .ease(d3.easeBackOut);
+    });
+});
+
+// ===================== 交互：悬停提示 =====================
+const tooltip = d3.select("#tooltip");
+
+// 箱体悬停
+g.selectAll(".box")
+    .on("mouseenter", function(event, d) {
+        const data = boxData.find(b => b.level === this.getAttribute("data-level"));
+        if (!data) return;
+
+        // 高亮当前箱体
+        g.selectAll(".box").style("opacity", 0.4);
+        d3.select(this).style("opacity", 1);
+
+        const html = `
+            <div class="tt-title"><span class="tt-color" style="background:${data.color}"></span>${levelNames[data.level]}</div>
+            <div class="tt-row"><span>语言数量</span><span>${data.count} 种</span></div>
+            <div class="tt-row"><span>最小值</span><span>${data.min.toLocaleString()} 人</span></div>
+            <div class="tt-row"><span>下四分位数 Q1</span><span>${Math.round(data.q1).toLocaleString()} 人</span></div>
+            <div class="tt-row"><span>中位数</span><span>${Math.round(data.median).toLocaleString()} 人</span></div>
+            <div class="tt-row"><span>上四分位数 Q3</span><span>${Math.round(data.q3).toLocaleString()} 人</span></div>
+            <div class="tt-row"><span>最大值</span><span>${data.max.toLocaleString()} 人</span></div>
+            <div class="tt-divider"></div>
+            <div class="tt-row"><span>异常值数量</span><span>${data.outliers.length} 个</span></div>
+        `;
+
+        tooltip.html(html).style("opacity", 1);
+    })
+    .on("mousemove", function(event) {
+        const container = document.getElementById("boxplot");
+        const rect = container.getBoundingClientRect();
+        tooltip
+            .style("left", (event.clientX - rect.left + 15) + "px")
+            .style("top", (event.clientY - rect.top + 15) + "px");
+    })
+    .on("mouseleave", function() {
+        g.selectAll(".box").style("opacity", 0.85);
+        tooltip.style("opacity", 0);
+    });
+
+// 异常值悬停
+g.selectAll(".outlier")
+    .on("mouseenter", function(event) {
+        const val = parseInt(this.getAttribute("data-value"));
+        tooltip.html(`
+            <div class="tt-title">异常值</div>
+            <div class="tt-row"><span>使用人数</span><span>${val.toLocaleString()} 人</span></div>
+            <div class="tt-minis">该数值超出正常分布范围</div>
+        `).style("opacity", 1);
+    })
+    .on("mousemove", function(event) {
+        const container = document.getElementById("boxplot");
+        const rect = container.getBoundingClientRect();
+        tooltip
+            .style("left", (event.clientX - rect.left + 15) + "px")
+            .style("top", (event.clientY - rect.top - 10) + "px");
+    })
+    .on("mouseleave", function() {
+        tooltip.style("opacity", 0);
+    });
+
+// ===================== 填充统计表格 =====================
+const tbody = document.getElementById("stat-tbody");
+boxData.forEach(d => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+        <td style="color:${d.color}; font-weight:700;">${levelNames[d.level]}</td>
+        <td>${Math.round(d.median).toLocaleString()}</td>
+        <td>${d.min.toLocaleString()}</td>
+        <td>${d.max.toLocaleString()}</td>
+    `;
+    tbody.appendChild(row);
+});
+</script>
+</body>
+</html>

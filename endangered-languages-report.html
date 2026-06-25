@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>世界濒危语言地图 — 数据可视化分析报告</title>
+    <script src="./_shared/js/echarts.min.js"></script>
+    <style>
+        @font-face {
+            font-family: 'CrimsonPro';
+            src: url('./_shared/fonts/CrimsonPro-Bold.ttf') format('truetype');
+            font-weight: 700;
+        }
+        @font-face {
+            font-family: 'WorkSans';
+            src: url('./_shared/fonts/WorkSans-Regular.ttf') format('truetype');
+            font-weight: 400;
+        }
+        @font-face {
+            font-family: 'WorkSans';
+            src: url('./_shared/fonts/WorkSans-Bold.ttf') format('truetype');
+            font-weight: 700;
+        }
+        @font-face {
+            font-family: 'GeistMono';
+            src: url('./_shared/fonts/GeistMono-Regular.ttf') format('truetype');
+            font-weight: 400;
+        }
+        @font-face {
+            font-family: 'GeistMono';
+            src: url('./_shared/fonts/GeistMono-Bold.ttf') format('truetype');
+            font-weight: 700;
+        }
+
+        :root {
+            --bg: #0b1020;
+            --bg2: #111a2e;
+            --surface: #162038;
+            --ink: #e8ecf4;
+            --muted: #8b95a8;
+            --rule: #263252;
+            --accent: #e85d4c;
+            --accent2: #2dd4bf;
+            --accent3: #f0a04b;
+            --gradient-warm: linear-gradient(135deg, #e85d4c 0%, #f0a04b 100%);
+            --gradient-cool: linear-gradient(135deg, #2dd4bf 0%, #3b82f6 100%);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'WorkSans', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            line-height: 1.75;
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg); }
+        ::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+        /* Typography */
+        h1, h2, h3, h4 {
+            font-family: 'CrimsonPro', 'PingFang SC', serif;
+            font-weight: 700;
+            line-height: 1.2;
+            letter-spacing: 0.02em;
+        }
+        h1 { font-size: clamp(2.2rem, 5vw, 3.5rem); }
+        h2 {
+            font-size: clamp(1.6rem, 3.5vw, 2.2rem);
+            margin: 3rem 0 1.2rem;
+            padding-bottom: 0.6rem;
+            border-bottom: 2px solid var(--accent);
+            display: inline-block;
+        }
+        h3 {
+            font-size: clamp(1.2rem, 2.5vw, 1.5rem);
+            margin: 2rem 0 0.8rem;
+            color: var(--accent2);
+        }
+        h4 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; color: var(--accent3); }
+
+        p { margin-bottom: 1rem; color: var(--ink); }
+
+        mark.key {
+            background: none;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        strong { color: var(--ink); font-weight: 700; }
+
+        a { color: var(--accent2); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        sup a {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.75em;
+            font-weight: 600;
+        }
+        sup a:hover { text-decoration: underline; }
+
+        /* Layout */
+        .container {
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        /* Hero */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding-bottom: 6rem;
+            overflow: hidden;
+        }
+        .hero-bg {
+            position: absolute;
+            inset: 0;
+            background: url('assets/hero_1280x720.jpg') center/cover no-repeat;
+            filter: brightness(0.45) saturate(0.9);
+        }
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to bottom, rgba(11,16,32,0.3) 0%, rgba(11,16,32,0.85) 70%, var(--bg) 100%);
+        }
+        .hero-content {
+            position: relative;
+            z-index: 2;
+            max-width: 980px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+        .hero-badge {
+            display: inline-block;
+            font-family: 'GeistMono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--accent);
+            background: rgba(232,93,76,0.12);
+            border: 1px solid rgba(232,93,76,0.3);
+            padding: 0.4rem 0.9rem;
+            border-radius: 100px;
+            margin-bottom: 1.2rem;
+        }
+        .hero h1 {
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #fff 0%, #b8c4dc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero-subtitle {
+            font-size: 1.15rem;
+            color: var(--muted);
+            max-width: 600px;
+            line-height: 1.6;
+            margin-bottom: 2rem;
+        }
+        .hero-meta {
+            display: flex;
+            gap: 2rem;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+            color: var(--muted);
+        }
+        .hero-meta span { display: flex; align-items: center; gap: 0.4rem; }
+        .scroll-hint {
+            position: absolute;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 2;
+            color: var(--muted);
+            font-size: 0.8rem;
+            animation: bounce 2s infinite;
+        }
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateX(-50%) translateY(0); }
+            40% { transform: translateX(-50%) translateY(-10px); }
+            60% { transform: translateX(-50%) translateY(-5px); }
+        }
+
+        /* Section */
+        section { padding: 4rem 0; }
+        section.alt { background: var(--bg2); }
+
+        /* Lead paragraph */
+        .lead {
+            font-size: 1.15rem;
+            color: var(--muted);
+            line-height: 1.8;
+            margin-bottom: 2rem;
+            border-left: 3px solid var(--accent);
+            padding-left: 1.2rem;
+        }
+
+        /* Stats grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.2rem;
+            margin: 2.5rem 0;
+        }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--rule);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent);
+        }
+        .stat-number {
+            font-family: 'GeistMono', monospace;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--muted);
+            line-height: 1.4;
+        }
+
+        /* Quote / Callout */
+        .callout {
+            background: var(--surface);
+            border-left: 4px solid var(--accent2);
+            padding: 1.5rem 1.8rem;
+            border-radius: 0 12px 12px 0;
+            margin: 2rem 0;
+            font-size: 1.05rem;
+            color: var(--ink);
+        }
+        .callout-accent {
+            border-left-color: var(--accent);
+        }
+
+        /* Findings */
+        .finding-list { margin: 1.5rem 0; }
+        .finding-item {
+            display: flex;
+            gap: 1rem;
+            background: var(--surface);
+            border: 1px solid var(--rule);
+            border-radius: 12px;
+            padding: 1.2rem 1.5rem;
+            margin-bottom: 1rem;
+            transition: border-color 0.2s;
+        }
+        .finding-item:hover { border-color: var(--accent2); }
+        .finding-num {
+            font-family: 'GeistMono', monospace;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1;
+            flex-shrink: 0;
+            width: 2.5rem;
+        }
+        .finding-content h4 {
+            font-size: 1.05rem;
+            margin: 0 0 0.3rem;
+            color: var(--ink);
+        }
+        .finding-content p {
+            font-size: 0.95rem;
+            color: var(--muted);
+            margin: 0;
+        }
+
+        /* Chart iframe */
+        .viz-frame {
+            width: 100%;
+            height: 720px;
+            border: 1px solid var(--rule);
+            border-radius: 12px;
+            background: #fafafa;
+            margin: 1.5rem 0;
+        }
+        .viz-caption {
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--muted);
+            margin-top: 0.5rem;
+            margin-bottom: 2rem;
+        }
+        .viz-link {
+            display: inline-block;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--accent2);
+            text-decoration: none;
+        }
+        .viz-link:hover { text-decoration: underline; }
+
+        /* ECharts container */
+        .chart-figure { margin: 2rem 0; }
+        .chart-figure figcaption {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--ink);
+            margin-bottom: 0.75rem;
+            text-align: center;
+        }
+        .chart-container {
+            width: 100%;
+            min-height: 400px;
+            background: var(--surface);
+            border: 1px solid var(--rule);
+            border-radius: 12px;
+        }
+
+        /* Principles */
+        .principle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 1.2rem;
+            margin: 1.5rem 0;
+        }
+        .principle-card {
+            background: var(--surface);
+            border: 1px solid var(--rule);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        .principle-card h4 {
+            font-size: 1rem;
+            margin: 0 0 0.5rem;
+            color: var(--accent3);
+        }
+        .principle-card p {
+            font-size: 0.9rem;
+            color: var(--muted);
+            margin: 0;
+        }
+
+        /* Action items */
+        .action-list {
+            list-style: none;
+            margin: 1.5rem 0;
+        }
+        .action-list li {
+            position: relative;
+            padding-left: 1.8rem;
+            margin-bottom: 0.8rem;
+            color: var(--muted);
+        }
+        .action-list li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.6rem;
+            width: 8px;
+            height: 8px;
+            background: var(--accent2);
+            border-radius: 50%;
+        }
+
+        /* Table */
+        .table-wrap {
+            overflow-x: auto;
+            overflow-y: auto;
+            max-height: 600px;
+            margin: 1.5rem 0;
+            border: 1px solid var(--rule);
+            border-radius: 12px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            min-width: 500px;
+        }
+        th {
+            text-align: left;
+            padding: 0.8rem 1rem;
+            color: var(--muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--rule);
+            background: var(--surface);
+            position: sticky;
+            top: 0;
+        }
+        td {
+            padding: 0.7rem 1rem;
+            border-bottom: 1px solid var(--rule);
+            color: var(--ink);
+        }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: rgba(255,255,255,0.03); }
+
+        /* Footer / Sources */
+        footer {
+            border-top: 1px solid var(--rule);
+            padding: 3rem 0 2rem;
+            margin-top: 4rem;
+        }
+        footer .sources ol {
+            padding-left: 1.2rem;
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+        footer .sources li {
+            margin-bottom: 0.5rem;
+            overflow-wrap: break-word;
+            word-break: break-all;
+        }
+        footer .sources .src-title {
+            color: var(--ink);
+            word-break: normal;
+        }
+        footer .sources .src-url {
+            display: block;
+            margin-top: 0.15rem;
+            font-size: 0.82rem;
+            color: var(--accent2);
+            word-break: break-all;
+        }
+
+        /* Divider */
+        .section-divider {
+            height: 1px;
+            background: var(--rule);
+            margin: 3rem 0;
+            border: none;
+        }
+
+        /* Print */
+        @media print {
+            .hero { min-height: auto; padding: 3rem 0; }
+            .scroll-hint { display: none; }
+            .viz-frame { height: 500px; }
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .container { padding: 0 1rem; }
+            .hero { min-height: 80vh; padding-bottom: 4rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .viz-frame { height: 500px; }
+            .finding-item { flex-direction: column; gap: 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ==================== HERO ==================== -->
+<header class="hero">
+    <div class="hero-bg"></div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <div class="hero-badge">Data Visualization Report</div>
+        <h1>世界濒危语言地图</h1>
+        <p class="hero-subtitle">
+            基于 Ethnologue 第29版数据的300种濒危语言可视化分析，探索全球语言危机的地理格局、人口规模与传承趋势。
+        </p>
+        <div class="hero-meta">
+            <span>小组成员：凌嘉慧，关欣玥，谢厚恩</span>
+            <span>2026/06/25</span>
+        </div>
+    </div>
+    <div class="scroll-hint">向下滚动阅读报告 ↓</div>
+</header>
+
+<!-- ==================== INTRO ==================== -->
+<section>
+    <div class="container">
+        <h2>引言：消失的不仅是交流工具</h2>
+        <p class="lead">
+            如果一种语言消失了，我们失去的仅仅是一种交流工具吗？
+        </p>
+        <p>
+            实际上，<mark class="key">每一种语言都承载着独特的历史记忆、文化传统和看待世界的方式</mark>。当一种语言灭绝时，我们失去的其实是一种独特的世界观。根据 Ethnologue 第29版的数据，目前全球约有 <strong>7170</strong> 种现存语言，其中 <strong>45%</strong> 已经处于不同程度的濒危状态。自1950年以来，已有 <strong>448</strong> 种语言彻底灭绝。
+        </p>
+        <p>
+            换句话说，<mark class="key">大约每40天，世界上就会消失一种语言</mark>。基于这一背景，我们收集了来自非洲、美洲、亚洲和大洋洲的300种濒危语言数据，总人数高达139万，希望回答三个核心问题：
+        </p>
+        <div class="callout">
+            <ol style="margin-left: 1.2rem; color: var(--muted);">
+                <li style="margin-bottom: 0.5rem;">濒危语言在全球的地理分布有什么特点？</li>
+                <li style="margin-bottom: 0.5rem;">人口规模与危机程度之间的关系如何？</li>
+                <li>极度濒危的语言，真的一定是使用人数最少的吗？</li>
+            </ol>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== DATA OVERVIEW ==================== -->
+<section class="alt">
+    <div class="container">
+        <h2>数据概览</h2>
+        <p style="color: var(--muted);">本研究基于 Ethnologue 第29版（2026年2月）数据，覆盖4个大洲、4个濒危等级，共300种濒危语言。</p>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number">300</div>
+                <div class="stat-label">濒危语言样本</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">1,391,657</div>
+                <div class="stat-label">总使用人数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">4</div>
+                <div class="stat-label">覆盖大洲</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">4</div>
+                <div class="stat-label">濒危等级</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">2 ~ 23,949</div>
+                <div class="stat-label">人数跨度</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">~40天</div>
+                <div class="stat-label">每消失一种语言</div>
+            </div>
+        </div>
+
+        <figure class="chart-figure">
+            <figcaption>各洲濒危语言数量与人口规模分布</figcaption>
+            <div id="chart-continent-overview" class="chart-container" style="min-height: 420px;"></div>
+        </figure>
+    </div>
+</section>
+
+<!-- ==================== FINDING 1 ==================== -->
+<section>
+    <div class="container">
+        <h2>发现一：地理分布格局与"沉默的危机中心"</h2>
+        <p>
+            通过各洲濒危等级占比分析，我们发现一个引人注目的现象：<mark class="key">大洋洲的"极度濒危语言"占比明显高于其他地区</mark>。尽管大洋洲的语言人口总量并非最大，但其语言的危机深度却最为严重。
+        </p>
+        <p>
+            为了进一步展示语言分布情况，我们制作了旭日图（Sunburst Chart）和树图（Treemap）。图中的面积代表语言使用人数总和，颜色则表示濒危程度（浅绿→黄→橙→深红）。
+        </p>
+
+        <figure style="margin: 2rem 0;">
+            <img src="assets/continent_level_ratio.jpg" alt="各洲濒危语言等级占比对比" style="max-width:100%;height:auto;border-radius:12px;border:1px solid var(--rule);">
+            <figcaption class="viz-caption">
+                图1：各洲濒危语言等级占比对比<br>
+                <span style="color: var(--muted);">水平堆叠条形图清晰展示各大洲四种濒危等级的比例分布，大洋洲的 Critically Endangered（深红色）占比显著高于其他大洲。</span>
+            </figcaption>
+        </figure>
+
+        <div class="callout callout-accent">
+            <strong>核心观察：</strong>非洲和美洲拥有较大的语言人口规模，因此面积较大；而大洋洲则呈现出大量细小且深红色的区域，说明这些语言使用人数较少，面临更加严重的生存危机。
+        </div>
+
+        <figure style="margin: 2rem 0;">
+            <iframe src="assets/sunburst.html" class="viz-frame" title="旭日图 — 层级危机格局"></iframe>
+            <figcaption class="viz-caption">
+                图2：层级危机格局 — 旭日图（Sunburst Chart）<br>
+                <span style="color: var(--muted);">内圈为四大洲，外圈为各洲的濒危等级分布，扇区面积严格对应该类别语言总使用人数。</span>
+            </figcaption>
+        </figure>
+
+        <figure style="margin: 2rem 0;">
+            <iframe src="assets/treemap.html" class="viz-frame" title="树图 — 面积比例对比"></iframe>
+            <figcaption class="viz-caption">
+                图3：面积比例对比 — 树图（Treemap）<br>
+                <span style="color: var(--muted);">矩形面积反映"人口规模"，颜色深浅反映"危机程度"，同一大洲的矩形自然聚类。</span>
+            </figcaption>
+        </figure>
+    </div>
+</section>
+
+<!-- ==================== FINDING 2 ==================== -->
+<section class="alt">
+    <div class="container">
+        <h2>发现二：反直觉洞察 — 极度濒危 ≠ 人数最少</h2>
+        <p class="lead">
+            很多人会认为，语言越少人说，就越濒危。但数据给出了一个反直觉的答案。
+        </p>
+        <p>
+            通过箱线图（Box Plot）的分析结果，我们发现四个濒危等级的使用人数分布实际上存在大量重叠。比如，<mark class="key">"极度濒危"语言的中位数大约是3,072人，而"脆弱"语言的中位数约为3,250人，两者几乎没有差别</mark>。更令人惊讶的是，部分极度濒危语言的使用人数甚至超过两万人。
+        </p>
+
+        <figure style="margin: 2rem 0;">
+            <iframe src="assets/boxplot.html" class="viz-frame" title="箱线图 — 对数坐标下的使用人数分布"></iframe>
+            <figcaption class="viz-caption">
+                图4：反直觉发现 — 箱线图（Box Plot，对数坐标）<br>
+                <span style="color: var(--muted);">四个等级的使用人数分布高度重叠，危机等级与人口规模并非简单线性关系。</span>
+            </figcaption>
+        </figure>
+
+        <figure style="margin: 2rem 0;">
+            <img src="assets/mean_vs_median.png" alt="平均数 vs 中位数对比" style="max-width:100%;height:auto;border-radius:12px;border:1px solid var(--rule);">
+            <figcaption class="viz-caption">
+                图5：平均数 vs 中位数：哪个更能反映真实情况？<br>
+                <span style="color: var(--muted);">左图显示平均数易受极端值影响（Americas异常偏高），右图显示中位数更能代表各洲"典型"语言的规模。</span>
+            </figcaption>
+        </figure>
+
+        <div class="callout">
+            <strong>为什么使用中位数而非平均数？</strong><br><br>
+            在完全一样的坐标轴下，我们可以观察到美洲的 Endangered 平均数异常高（6,500+），这是因为存在几个"万人级"异常值。中位数更能代表"典型"语言的规模，不受极端值的过度影响。
+        </div>
+    </div>
+</section>
+
+<!-- ==================== KEY FINDINGS ==================== -->
+<section>
+    <div class="container">
+        <h2>三个核心结论</h2>
+
+        <div class="finding-list">
+            <div class="finding-item">
+                <div class="finding-num">01</div>
+                <div class="finding-content">
+                    <h4>极度濒危并不等于人数最少</h4>
+                    <p>Critically Endangered 中，最大人数达 21,752 人，与 Vulnerable 上限几乎重叠。四个等级的中位数都在 3,000 左右，说明"濒危"更多取决于传承趋势而非当前规模。</p>
+                </div>
+            </div>
+            <div class="finding-item">
+                <div class="finding-num">02</div>
+                <div class="finding-content">
+                    <h4>大洋洲是全球语言保护最容易被忽视的地区</h4>
+                    <p>语言数量不是最多，但 Critically Endangered 占比极高，且人均危机程度最深。小块密集红色区域揭示了这一"沉默的危机中心"。</p>
+                </div>
+            </div>
+            <div class="finding-item">
+                <div class="finding-num">03</div>
+                <div class="finding-content">
+                    <h4>评估语言危机应关注"传承趋势"而非"当前人数"</h4>
+                    <p>一个拥有两万名使用者、但年轻一代不再学习的语言，可能比一个只有五百名使用者、但仍能正常传承给下一代的语言更加危险。代际传承才是核心指标。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== DESIGN PRINCIPLES ==================== -->
+<section class="alt">
+    <div class="container">
+        <h2>可视化设计决策：信、达、雅</h2>
+        <p style="color: var(--muted);">在整个可视化过程中，我们始终追求"信达雅"——保证数据真实、表达准确、展现美观。</p>
+
+        <div class="principle-grid">
+            <div class="principle-card">
+                <h4>信（真实准确）</h4>
+                <p>面积/扇区严格对应使用人数总和，不扭曲比例；箱线图采用对数坐标，避免线性坐标压缩低值区；五数概括精确反映分布特征。</p>
+            </div>
+            <div class="principle-card">
+                <h4>达（清晰传达）</h4>
+                <p>旭日图仅用两层，避免300个语言堆砌导致"色轮灾难"；树图面积直观对比"人口规模"，颜色映射"危机程度"；箱线图抖动散点保留全部个体信息。</p>
+            </div>
+            <div class="principle-card">
+                <h4>雅（优雅美观）</h4>
+                <p>HSL色彩系统：饱和度映射危机强度，明度统一调控；浅绿→黄→橙→深红形成"危机温度计"视觉隐喻；三个图表色彩统一，形成系列化专业视觉语言。</p>
+            </div>
+        </div>
+
+        <figure class="chart-figure">
+            <figcaption>濒危等级色彩体系与统计摘要</figcaption>
+            <div id="chart-color-system" class="chart-container" style="min-height: 380px;"></div>
+        </figure>
+    </div>
+</section>
+
+<!-- ==================== CONCLUSION ==================== -->
+<section>
+    <div class="container">
+        <h2>结论与行动呼吁</h2>
+        <p>
+            濒危语言的危机是结构性的，不是简单的"人数少=危险"。我们需要综合评估代际传承、使用场景、教育支持等多维度因素，制定差异化的保护策略。
+        </p>
+
+        <div class="callout callout-accent">
+            <strong>一种语言的消失，不只是几个词汇从字典中消失，而是一整套文化记忆和思维方式的永久消失。</strong>
+        </div>
+
+        <p>基于以上分析，我们提出以下行动建议：</p>
+        <ul class="action-list">
+            <li><strong style="color: var(--ink);">优先关注大洋洲</strong> — 人少但危机极深，应优先投入保护资源，建立社区语言档案。</li>
+            <li><strong style="color: var(--ink);">差异化保护策略</strong> — 不能只看人数，要看传承趋势。2万人但断代的语言，比500人但传承完整的语言更"濒危"。</li>
+            <li><strong style="color: var(--ink);">重视代际传承评估</strong> — 将年轻一代的学习意愿和使用场景纳入濒危等级评定体系。</li>
+            <li><strong style="color: var(--ink);">推动社区参与</strong> — 语言保护的核心在于使用者的认同与参与，而非单纯的外部记录。</li>
+        </ul>
+
+        <div class="callout">
+            数据可视化帮助我们<strong>"看见"</strong>了这场平时容易被忽略的文化危机。但看见只是第一步，更重要的是行动。只有重视语言记录、教育传承以及社区保护，我们才能让这些濒危语言继续被听见、被使用、被传承。
+        </div>
+
+
+    </div>
+</section>
+
+<!-- ==================== FOOTER ==================== -->
+<footer>
+    <div class="container">
+        <div class="sources">
+            <h3 style="margin-bottom: 1rem;">数据来源</h3>
+            <ol>
+                <li id="cite-1">
+                    <span class="src-title">Ethnologue, 第29版（2026年2月）. 全球语言数据库，提供语言使用人数、濒危等级等核心数据。</span>
+                    <a class="src-url" href="https://www.ethnologue.com/" target="_blank" rel="noopener">https://www.ethnologue.com/</a>
+                </li>
+                <li id="cite-2">
+                    <span class="src-title">UNESCO Atlas of the World's Languages in Danger. 联合国教科文组织濒危语言地图集，提供语言濒危等级分类标准。</span>
+                    <a class="src-url" href="https://en.unesco.org/atlas-languages" target="_blank" rel="noopener">https://en.unesco.org/atlas-languages</a>
+                </li>
+                <li id="cite-3">
+                    <span class="src-title">用户上传文档：世界濒危语言地图.pptx、大数据演讲稿.doc。小组汇报材料，包含研究设计、可视化方案与核心结论。</span>
+                    <span class="src-url">User-uploaded document</span>
+                </li>
+            </ol>
+        </div>
+        <p style="text-align: center; margin-top: 2rem; font-size: 0.8rem; color: var(--muted);">
+            世界濒危语言地图数据可视化分析报告 · 2026/06/25
+        </p>
+    </div>
+</footer>
+
+<!-- ==================== ECHARTS SCRIPTS ==================== -->
+<script src="./_shared/js/echarts.min.js"></script>
+<script src="assets/charts.js"></script>
+
+</body>
+</html>
