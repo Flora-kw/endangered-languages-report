@@ -4,31 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>世界濒危语言地图 — 数据可视化分析报告</title>
-    <script src="./_shared/js/echarts.min.js"></script>
+    <script src="echarts.min.js"></script>
     <style>
         @font-face {
             font-family: 'CrimsonPro';
-            src: url('./_shared/fonts/CrimsonPro-Bold.ttf') format('truetype');
+            src: url('CrimsonPro-Bold.ttf') format('truetype');
             font-weight: 700;
         }
         @font-face {
             font-family: 'WorkSans';
-            src: url('./_shared/fonts/WorkSans-Regular.ttf') format('truetype');
+            src: url('WorkSans-Regular.ttf') format('truetype');
             font-weight: 400;
         }
         @font-face {
             font-family: 'WorkSans';
-            src: url('./_shared/fonts/WorkSans-Bold.ttf') format('truetype');
+            src: url('WorkSans-Bold.ttf') format('truetype');
             font-weight: 700;
         }
         @font-face {
             font-family: 'GeistMono';
-            src: url('./_shared/fonts/GeistMono-Regular.ttf') format('truetype');
+            src: url('GeistMono-Regular.ttf') format('truetype');
             font-weight: 400;
         }
         @font-face {
             font-family: 'GeistMono';
-            src: url('./_shared/fonts/GeistMono-Bold.ttf') format('truetype');
+            src: url('GeistMono-Bold.ttf') format('truetype');
             font-weight: 700;
         }
 
@@ -128,7 +128,7 @@
         .hero-bg {
             position: absolute;
             inset: 0;
-            background: url('assets/hero_1280x720.jpg') center/cover no-repeat;
+            background: url('hero_1280x720.jpg') center/cover no-repeat;
             filter: brightness(0.45) saturate(0.9);
         }
         .hero-overlay {
@@ -557,7 +557,7 @@
         </p>
 
         <figure style="margin: 2rem 0;">
-            <img src="assets/continent_level_ratio.jpg" alt="各洲濒危语言等级占比对比" style="max-width:100%;height:auto;border-radius:12px;border:1px solid var(--rule);">
+            <img src="continent_level_ratio.jpg" alt="各洲濒危语言等级占比对比" style="max-width:100%;height:auto;border-radius:12px;border:1px solid var(--rule);">
             <figcaption class="viz-caption">
                 图1：各洲濒危语言等级占比对比<br>
                 <span style="color: var(--muted);">水平堆叠条形图清晰展示各大洲四种濒危等级的比例分布，大洋洲的 Critically Endangered（深红色）占比显著高于其他大洲。</span>
@@ -569,7 +569,7 @@
         </div>
 
         <figure style="margin: 2rem 0;">
-            <iframe src="assets/sunburst.html" class="viz-frame" title="旭日图 — 层级危机格局"></iframe>
+            <iframe src="sunburst.html" class="viz-frame" title="旭日图 — 层级危机格局"></iframe>
             <figcaption class="viz-caption">
                 图2：层级危机格局 — 旭日图（Sunburst Chart）<br>
                 <span style="color: var(--muted);">内圈为四大洲，外圈为各洲的濒危等级分布，扇区面积严格对应该类别语言总使用人数。</span>
@@ -577,7 +577,7 @@
         </figure>
 
         <figure style="margin: 2rem 0;">
-            <iframe src="assets/treemap.html" class="viz-frame" title="树图 — 面积比例对比"></iframe>
+            <iframe src="treemap.html" class="viz-frame" title="树图 — 面积比例对比"></iframe>
             <figcaption class="viz-caption">
                 图3：面积比例对比 — 树图（Treemap）<br>
                 <span style="color: var(--muted);">矩形面积反映"人口规模"，颜色深浅反映"危机程度"，同一大洲的矩形自然聚类。</span>
@@ -598,7 +598,7 @@
         </p>
 
         <figure style="margin: 2rem 0;">
-            <iframe src="assets/boxplot.html" class="viz-frame" title="箱线图 — 对数坐标下的使用人数分布"></iframe>
+            <iframe src="boxplot.html" class="viz-frame" title="箱线图 — 对数坐标下的使用人数分布"></iframe>
             <figcaption class="viz-caption">
                 图4：反直觉发现 — 箱线图（Box Plot，对数坐标）<br>
                 <span style="color: var(--muted);">四个等级的使用人数分布高度重叠，危机等级与人口规模并非简单线性关系。</span>
@@ -606,7 +606,7 @@
         </figure>
 
         <figure style="margin: 2rem 0;">
-            <img src="assets/mean_vs_median.png" alt="平均数 vs 中位数对比" style="max-width:100%;height:auto;border-radius:12px;border:1px solid var(--rule);">
+            <img src="mean_vs_median.png" alt="平均数 vs 中位数对比" style="max-width:100%;height:auto;border-radius:12px;border:1px solid var(--rule);">
             <figcaption class="viz-caption">
                 图5：平均数 vs 中位数：哪个更能反映真实情况？<br>
                 <span style="color: var(--muted);">左图显示平均数易受极端值影响（Americas异常偏高），右图显示中位数更能代表各洲"典型"语言的规模。</span>
@@ -703,7 +703,6 @@
             数据可视化帮助我们<strong>"看见"</strong>了这场平时容易被忽略的文化危机。但看见只是第一步，更重要的是行动。只有重视语言记录、教育传承以及社区保护，我们才能让这些濒危语言继续被听见、被使用、被传承。
         </div>
 
-
     </div>
 </section>
 
@@ -734,8 +733,8 @@
 </footer>
 
 <!-- ==================== ECHARTS SCRIPTS ==================== -->
-<script src="./_shared/js/echarts.min.js"></script>
-<script src="assets/charts.js"></script>
+<script src="echarts.min.js"></script>
+<script src="charts.js"></script>
 
 </body>
 </html>
